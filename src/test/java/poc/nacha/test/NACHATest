@@ -1,0 +1,194 @@
+package poc.nacha.test;
+
+import com.univocity.parsers.common.processor.OutputValueSwitch;
+import com.univocity.parsers.fixed.FixedWidthFields;
+import com.univocity.parsers.fixed.FixedWidthWriter;
+import com.univocity.parsers.fixed.FixedWidthWriterSettings;
+import org.junit.Test;
+import poc.nachamfile.AdditionalRecord;
+import poc.nachamfile.BatchControl;
+import poc.nachamfile.BatchHeader;
+import poc.nachamfile.EntryRecord;
+import poc.nachamfile.FileControl;
+import poc.nachamfile.FileHeader;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+
+public class NACHATest {
+
+    @Test
+    public void poc01WriteFixedWidthUsingAnnotatedBean() {
+
+        //##CODE_START
+
+        //creates a switch that will use a different row processor for writing a row, based on values at column 0.
+        OutputValueSwitch writerSwitch = new OutputValueSwitch();
+
+
+        // Writing to an in-memory byte array. This will be printed out to the standard output so you can easily see the result.
+        ByteArrayOutputStream fixedWidthResult = new ByteArrayOutputStream();
+
+        // An instance of java.io.Writer
+        Writer outputWriter = new OutputStreamWriter(fixedWidthResult);
+
+
+        //Configure fields of each bean
+        FixedWidthFields fileHeaderFields = FixedWidthFields.forWriting(FileHeader.class);
+        FixedWidthFields batchHeaderFields = FixedWidthFields.forWriting(BatchHeader.class);
+        FixedWidthFields entryDetailsFields = FixedWidthFields.forWriting(EntryRecord.class);
+        FixedWidthFields additionalRecordFields = FixedWidthFields.forWriting(AdditionalRecord.class);
+        FixedWidthFields batchControlFields = FixedWidthFields.forWriting(BatchControl.class);
+        FixedWidthFields fileControlFields = FixedWidthFields.forWriting(FileControl.class);
+
+
+        //Configure Writer settings
+        FixedWidthWriterSettings settings = new FixedWidthWriterSettings();
+
+        settings.setAutoConfigurationEnabled(true);
+        settings.setRowWriterProcessor(writerSwitch);
+
+
+        //Add lookup to check which bean fields to configure
+        settings.addFormatForLookahead("1", fileHeaderFields);
+        settings.addFormatForLookahead("5", batchHeaderFields);
+        settings.addFormatForLookahead("6", entryDetailsFields);
+        settings.addFormatForLookahead("7", additionalRecordFields);
+        settings.addFormatForLookahead("8", batchControlFields);
+        settings.addFormatForLookahead("9", fileControlFields);
+
+
+        ////you can also define specific fields to write by giving a list of header names/column indexes.
+        writerSwitch.addSwitchForType(FileHeader.class);
+        writerSwitch.addSwitchForType(BatchHeader.class);
+        writerSwitch.addSwitchForType(EntryRecord.class);
+        writerSwitch.addSwitchForType(AdditionalRecord.class);
+        writerSwitch.addSwitchForType(BatchControl.class);
+        writerSwitch.addSwitchForType(FileControl.class);
+
+        // Creates a writer with the above settings;
+        FixedWidthWriter writer = new FixedWidthWriter(outputWriter, settings);
+
+        //Initialize File header bean
+        FileHeader fileHeaderBean = new FileHeader();
+        fileHeaderBean.setRecordType(1);
+        fileHeaderBean.setSessionType(0);
+        fileHeaderBean.setCurreny(0);
+        fileHeaderBean.setSettlementCycle("APP");
+        fileHeaderBean.setInstructedAgent("12345678");
+        fileHeaderBean.setInstructingAgent("2434445566");
+        fileHeaderBean.setFileCreationDate("20180521");
+        fileHeaderBean.setFileNumber(1);
+        fileHeaderBean.setImmediateDestinationBank("Immediate destination bank");
+        fileHeaderBean.setImmediateOriginBank("Immediate origin bank");
+        fileHeaderBean.setReserved("Some data in reserved");
+
+        //Initialize File control bean
+        FileControl fileControlBean = new FileControl();
+        fileControlBean.setRecordType(9);
+        fileControlBean.setFileMessageCount(654321);
+        fileControlBean.setFileTotalRecords(545676788);
+        fileControlBean.setFileControlRecords(33345);
+        fileControlBean.setFileNumberOfTransactions(789);
+        fileControlBean.setFileAmount(99);
+        fileControlBean.setFileChargeAmount(78896);
+        fileControlBean.setReserved("Reserved space");
+
+        //Initialize Batch header bean
+        BatchHeader batchHeaderBean = new BatchHeader();
+        batchHeaderBean.setRecordType(5);
+        batchHeaderBean.setFileNumber(23);
+        batchHeaderBean.setBatchTypeCode("AB");
+        batchHeaderBean.setUltimateDebtorName("Debtor Name");
+        batchHeaderBean.setTransferConcept("TransfConcept");
+        batchHeaderBean.setTransferType("Transfer type");
+        batchHeaderBean.setCreationDate("20180911");
+        batchHeaderBean.setSettlementDate("20180911");
+        batchHeaderBean.setDebtorAgent("Debtor agent");
+        batchHeaderBean.setReserved("Reserved space");
+
+        //Initialize Batch control bean
+        BatchControl batchControlBean = new BatchControl();
+        batchControlBean.setRecordType(8);
+        batchControlBean.setTotalRecords(1223);
+        batchControlBean.setControlRecord(456);
+        batchControlBean.setNumberOfTransactions(666);
+        batchControlBean.setTotalSettlementAmount(56);
+        batchControlBean.setTotalChargeAmount(456);
+        batchControlBean.setReserved("Reserved space");
+        batchControlBean.setDebtorAgent("Debtor agent");
+        batchControlBean.setBatchNumber(888);
+        batchControlBean.setReservedTwo("Reserved field 2");
+
+        //Initialize entry record bean
+        EntryRecord entryRecordBean = new EntryRecord();
+        entryRecordBean.setRecordType(6);
+        entryRecordBean.setTransactionTypeCode("TRT");
+        entryRecordBean.setInstructedAgent("InstructedAgent");
+        entryRecordBean.setRate("A");
+        entryRecordBean.setCriterion("Critirion");
+        entryRecordBean.setCreditorAccount("112233445566");
+        entryRecordBean.setSettlementAmount("4567");
+        entryRecordBean.setChargeType("ChargType");
+        entryRecordBean.setChargeAmount("8877");
+        entryRecordBean.setDebtorName("Debtor Name");
+        entryRecordBean.setCreditorName("Creditor Name");
+        entryRecordBean.setRemittanceInfo("RemitInfo");
+        entryRecordBean.setInstructionId("345345");
+        entryRecordBean.setAdditionalRecordIndicator("AdditionalRec");
+        entryRecordBean.setTranscationId("23456");
+
+        //Initialize additional record bean
+        AdditionalRecord  additionalRecordBean= new AdditionalRecord();
+        additionalRecordBean.setRecordType(7);
+        additionalRecordBean.setSegmentType("SEG");
+        additionalRecordBean.setCreditorIdCode("CredCode");
+        additionalRecordBean.setCreditorId("1234");
+        additionalRecordBean.setCreditorAddressLine("Address Line1");
+        additionalRecordBean.setBeneficioryTelefoneNumber("9876534322");
+        additionalRecordBean.setCard("12376456345345");
+        additionalRecordBean.setDebtorAddressLine("Address line debtor");
+        additionalRecordBean.setDebtorAccount("777777");
+        additionalRecordBean.setConfirmation("Confirmation");
+        additionalRecordBean.setReserved("Reserved space");
+        additionalRecordBean.setIndivisualTxnRecord("Indv txn record");
+
+
+
+        // writes a Fixed Width row with the values set in "bean".
+        writer.processRecord(fileHeaderBean);
+        writer.processRecord(batchHeaderBean);
+        writer.processRecord(entryRecordBean);
+        writer.processRecord(additionalRecordBean);
+        writer.processRecord(batchControlBean);
+        writer.processRecord(fileControlBean);
+
+        writer.close();
+
+        // Let's just print the resulting fixed width output
+        System.out.println(fixedWidthResult.toString());
+
+        //Write the stream to a file
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(new File("D:\\workspace\\FixedWidthFilePOC-master\\target\\EC.txt"));
+
+            //Write data to a file
+            fixedWidthResult.writeTo(fos);
+
+            fos.close();
+        } catch (IOException ioe) {
+            // Handle exception here
+            ioe.printStackTrace();
+        }
+
+        //##CODE_END
+
+    }
+
+
+}
